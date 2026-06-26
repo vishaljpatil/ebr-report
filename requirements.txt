@@ -1,0 +1,2 @@
+# No external dependencies — uses Python stdlib only (urllib, http.server, webbrowser)
+# Python 3.10+ required
