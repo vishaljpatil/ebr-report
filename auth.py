@@ -134,13 +134,16 @@ def get_access_token(mcp_url: str, port: int = 8765) -> str:
     if tokens and tokens.get("refresh_token") and tokens.get("client_id"):
         try:
             refreshed = _refresh(token_ep, tokens["client_id"], tokens["refresh_token"])
-            if refreshed.get("access_token"):
-                tokens.update(refreshed)
-                tokens["expires_at"] = time.time() + refreshed.get("expires_in", 3600)
-                save_tokens(tokens)
-                return tokens["access_token"]
         except Exception:
-            pass  # fall through to full auth
+            refreshed = {}
+        if refreshed.get("access_token"):
+            tokens.update(refreshed)
+            tokens["expires_at"] = time.time() + refreshed.get("expires_in", 3600)
+            try:
+                save_tokens(tokens)
+            except Exception:
+                pass  # non-fatal if file is not writable
+            return tokens["access_token"]
 
     # Full OAuth flow
     if not reg_ep:
@@ -157,7 +160,7 @@ def get_access_token(mcp_url: str, port: int = 8765) -> str:
         "redirect_uri": redirect_uri,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
-        "scope": "ZohoProjects.timesheets.READ ZohoMCP.tool.execute",
+        "scope": "ZohoProjects.timesheets.READ ZohoProjects.projects.READ ZohoProjects.portals.READ ZohoMCP.tool.execute",
     })
     auth_url = f"{auth_ep}?{params}"
 

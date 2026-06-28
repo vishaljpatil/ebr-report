@@ -13,7 +13,7 @@ from datetime import date
 from pathlib import Path
 
 from auth import get_access_token
-from mcp_client import MCPClient
+from zoho_api import find_project_id, get_timelogs
 from ebr import calculate, render_report
 
 CONFIG_FILE = Path(__file__).parent / "config.json"
@@ -158,38 +158,27 @@ def main():
         print(f"Auth failed: {e}")
         sys.exit(1)
 
-    # Connect to MCP
-    client = MCPClient(mcp_url, token)
-    try:
-        client.initialize()
-    except Exception as e:
-        print(f"MCP connection failed: {e}")
-        sys.exit(1)
+    # Resolve project name → project ID (config cache first, then Zoho REST API)
+    project_id = config.get("project_ids", {}).get(project)
 
-    # Fetch timelogs via MCP tool
+    if not project_id:
+        print("Looking up project in Zoho...")
+        try:
+            project_id = find_project_id(portal, project, token)
+        except Exception as e:
+            print(f"\nERROR connecting to Zoho: {e}")
+            sys.exit(1)
+
+        if not project_id:
+            print(f"\nERROR: Project '{project}' not found in Zoho.")
+            sys.exit(1)
+
+    # Fetch timelogs directly from Zoho Projects API
     print("Fetching timelogs from Zoho...")
     try:
-        result = client.call_tool("get time logs by project", {
-            "project_name": project,
-            "portal_name":  portal,
-            "date_from":    date_from,
-            "date_to":      date_to,
-            "bill_status":  bill_filter,
-        })
+        logs = get_timelogs(portal, project_id, date_from, date_to, token)
     except Exception as e:
-        err = str(e)
-        if "NO_ACCESS" in err or "PERMISSION" in err or "not found" in err.lower():
-            print(f"\nERROR: Project '{project}' not found or you don't have access to it in Zoho.")
-            print("Check: 1) spelling matches Zoho exactly  2) you are assigned to this project")
-        else:
-            print(f"\nERROR fetching data: {err}")
-        sys.exit(1)
-
-    logs, err = parse_logs_from_mcp(result)
-
-    if err:
-        print(f"\nERROR: {err}")
-        print(f"Check: 1) project name '{project}' matches Zoho exactly  2) you are assigned to this project in Zoho")
+        print(f"\nERROR fetching timelogs: {e}")
         sys.exit(1)
 
     if not logs:

@@ -1,60 +1,69 @@
-# Growisto Timesheet EBR Skill (Python)
+# Growisto Timesheet EBR Skill
 
-## What it does
-Fetches timesheet data from Zoho Projects via a custom Zoho MCP, calculates EBR (Effective Billing Rate), and prints a formatted member-wise report.
+Generate an Effort-to-Billing Ratio (EBR) report for any Growisto client project by pulling live timesheet data from Zoho Projects.
 
-**No Zoho API tokens needed in code** — auth is handled via one-time browser OAuth on first run.
+## Trigger
+
+`/ebr`
+
+## What this skill does
+
+When invoked, this skill:
+1. Asks the user for project name, month, revenue, and bill filter
+2. Pulls timelog data from Zoho Projects via the Growisto MCP integration
+3. Calculates EBR (hours per member, revenue share, ₹/hr rate)
+4. Prints a formatted report and offers to save it as a file
+
+## One-time setup (per machine)
+
+```bash
+# 1. Clone into your Claude skills folder
+git clone https://github.com/vishaljpatil/ebr-report.git ~/.claude/skills/ebr-skill
+
+# 2. Verify Python 3.10+
+python3 --version
+```
+
+On first run, a browser window opens for Zoho login. After that it runs silently — no repeated logins.
 
 ---
 
-## Setup (one time per machine)
+## Instructions for Claude
 
-### 1. Clone the repo
+When the user runs `/ebr`, execute the following steps exactly:
+
+### Step 1 — Find the skill directory
+
+The skill lives at `~/.claude/skills/ebr-skill/`. Confirm it exists:
+
 ```bash
-git clone <repo-url>
-cd timesheet-python
+ls ~/.claude/skills/ebr-skill/main.py
 ```
 
-### 2. Verify Python version
+If not found, tell the user to run the one-time setup above and stop.
+
+### Step 2 — Run the skill
+
 ```bash
-python3 --version   # needs 3.10+
+cd ~/.claude/skills/ebr-skill && python3 main.py
 ```
 
-### 3. Check config.json
-```json
-{
-  "mcp_url": "https://timesheet-logs-mcp-60075680902.zohomcp.in/mcp/.../message",
-  "portal": "growistoinc",
-  "redirect_port": 8765
-}
-```
-No credentials here — just the MCP URL and portal name.
+The script is fully interactive — it will prompt for:
+- **Project name** — must match Zoho exactly (e.g. `Kama Ayurveda`)
+- **Month** — format `YYYY-MM` or date range `YYYY-MM-DD:YYYY-MM-DD` (default: current month)
+- **Monthly Revenue** — accepts `7l`, `5.5lac`, `550000`, `7 lakh` etc.
+- **Bill filter** — `All`, `Billable`, or `Non Billable` (default: All)
 
-### 4. Run
-```bash
-python3 main.py
-```
+### Step 3 — First run only (auth)
 
-On first run it opens your browser → log in with your Zoho account → tokens saved locally in `tokens.json` (gitignored).
+If the script opens a browser for Zoho login, tell the user:
+> "Please log in with your Growisto Zoho account. This is a one-time step — you won't be asked again."
 
----
+After login the tokens are saved locally and all future runs are silent.
 
-## Usage
+### Step 4 — Report output
 
-```
-$ python3 main.py
-
-========================================
-  Growisto Timesheet EBR Skill
-========================================
-
-Project name [Kama Ayurveda]: 
-Month or date range (YYYY-MM or YYYY-MM-DD:YYYY-MM-DD) [2026-06]:
-Monthly Revenue (e.g. 5.5 lac, 550000, 7l) [550000]: 5.5 lac
-Bill filter (All / Billable / Non Billable) [All]: 
-```
-
-Then it prints the full EBR report.
+The script prints the full EBR report to the terminal. If the user wants to save it, the script will prompt for that too.
 
 ---
 
@@ -71,16 +80,24 @@ Member Rev Share = (Member Hours ÷ Total Hours) × Monthly Revenue
 
 | File | Purpose |
 |------|---------|
-| `main.py` | CLI entry point — collects inputs, calls MCP, prints report |
-| `auth.py` | OAuth2 PKCE flow with dynamic client registration |
-| `mcp_client.py` | MCP JSON-RPC HTTP client |
+| `main.py` | CLI entry point |
+| `auth.py` | OAuth2 PKCE — one-time browser login, silent refresh after |
+| `mcp_client.py` | Zoho MCP JSON-RPC client |
+| `zoho_api.py` | Zoho Projects REST API (timelogs) |
 | `ebr.py` | EBR calculation + report formatting |
-| `config.json` | MCP URL + portal (no secrets) |
-| `tokens.json` | Auto-created after first auth — **gitignored** |
+| `config.json` | MCP URL + portal + project ID cache (no secrets) |
+| `tokens.json` | Auto-created after first auth — **gitignored, never committed** |
+
+---
+
+## Adding a new project
+
+If a project isn't found, ask the Claude Code team to update the skill repo — they can look up the project ID and add it to `config.json` in one step.
 
 ---
 
 ## Security
+
 - `tokens.json` is gitignored — never committed
-- `config.json` contains only the public MCP URL — safe to commit
-- All Zoho API calls are READ-ONLY (scope: ZohoProjects.timesheets.READ)
+- `config.json` contains only the public MCP URL and project IDs — safe to commit
+- All Zoho API calls are **READ-ONLY**
