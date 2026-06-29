@@ -11,6 +11,7 @@ import json
 import sys
 from datetime import date
 from pathlib import Path
+from typing import List, Optional, Tuple
 
 from auth import get_access_token
 from zoho_api import find_project_id, get_timelogs
@@ -41,13 +42,13 @@ def parse_revenue(s: str) -> float:
     return float(s)
 
 
-def month_range(year: int, month: int) -> tuple[str, str]:
+def month_range(year: int, month: int) -> Tuple[str, str]:
     from calendar import monthrange
     _, last = monthrange(year, month)
     return f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last:02d}"
 
 
-def parse_date_range(raw: str) -> tuple[str, str]:
+def parse_date_range(raw: str) -> Tuple[str, str]:
     if ":" in raw:
         parts = raw.split(":")
         return parts[0].strip(), parts[1].strip()
@@ -60,7 +61,7 @@ def parse_date_range(raw: str) -> tuple[str, str]:
     return month_range(today.year, today.month)
 
 
-def parse_logs_from_mcp(result: dict) -> tuple[list[dict], str | None]:
+def parse_logs_from_mcp(result: dict) -> Tuple[List[dict], Optional[str]]:
     """
     Returns (logs, error_message).
     error_message is set if Zoho returned an access/permission error.

@@ -8,6 +8,7 @@ import base64
 import hashlib
 import http.server
 import json
+from typing import Optional, Tuple
 import os
 import secrets
 import threading
@@ -50,7 +51,7 @@ def dynamic_register(registration_endpoint: str, redirect_uri: str) -> dict:
         return json.loads(r.read())
 
 
-def _pkce_pair() -> tuple[str, str]:
+def _pkce_pair() -> Tuple[str, str]:
     verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
     digest = hashlib.sha256(verifier.encode()).digest()
     challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
@@ -111,7 +112,7 @@ def _refresh(token_endpoint: str, client_id: str, refresh_token: str) -> dict:
         return json.loads(r.read())
 
 
-def load_tokens() -> dict | None:
+def load_tokens() -> Optional[dict]:
     if TOKENS_FILE.exists():
         return json.loads(TOKENS_FILE.read_text())
     return None
